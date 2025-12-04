@@ -11,6 +11,26 @@ const grades = db
     <div class="glass-panel">
         <div class="header">
             <h1>Notenübersicht</h1>
+            {
+                (() => {
+                    const lastCheck = db
+                        .prepare(
+                            "SELECT value FROM system_status WHERE key = 'last_check'",
+                        )
+                        .get() as { value: string } | undefined;
+
+                    if (lastCheck) {
+                        return (
+                            <div class="last-check">
+                                Letzter Download:{" "}
+                                {new Date(lastCheck.value).toLocaleString(
+                                    "de-DE",
+                                )}
+                            </div>
+                        );
+                    }
+                })()
+            }
             <a href="/settings" class="btn">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -174,6 +194,13 @@ const grades = db
         justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 2rem;
+    }
+
+    .last-check {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+        font-weight: 400;
     }
 
     .logs-container {

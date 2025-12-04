@@ -15,6 +15,18 @@ db.exec(`
     updated_at TEXT,
     UNIQUE(module_name, occurrence_index)
   );
-`);
+
+  CREATE TABLE IF NOT EXISTS system_status (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS app_state (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+`
+);
 
 export default db;

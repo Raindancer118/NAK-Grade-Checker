@@ -95,6 +95,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Create system_status table
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS system_status (
+		key TEXT PRIMARY KEY,
+		value TEXT,
+		updated_at TEXT
+	);`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Setup Client with CookieJar ONCE to persist session
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
@@ -263,6 +273,15 @@ func checkGrades(db *sql.DB, client *http.Client, username, password, targetURL 
 
 	if isFirstRun {
 		log.Println("Initial silent sync complete. Notifications will be enabled for future runs.")
+	}
+
+	// Update last check time
+	_, err = db.Exec(`INSERT INTO system_status (key, value, updated_at) 
+		VALUES ('last_check', ?, ?) 
+		ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`,
+		time.Now().Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	if err != nil {
+		log.Println("Error updating last_check:", err)
 	}
 }
 

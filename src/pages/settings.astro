@@ -72,6 +72,10 @@ if (Astro.request.method === "POST") {
                 if (transcriptUrl) {
                     newEnv.TRANSCRIPT_URL = transcriptUrl;
                 }
+
+                const usagePingEnabled = data.get("usagePingEnabled") === "on";
+                newEnv.USAGE_PING_ENABLED = usagePingEnabled ? "true" : "false";
+
                 message = "Einstellungen gespeichert!";
                 msgType = "success";
             } else if (formType === "notifications") {
@@ -347,6 +351,21 @@ if (Astro.request.method === "POST") {
                         Standard: https://cis.nordakademie.de/...
                     </small>
                 </div>
+
+                <div class="form-group checkbox-group">
+                    <label class="switch">
+                        <input
+                            type="checkbox"
+                            name="usagePingEnabled"
+                            checked={envConfig.USAGE_PING_ENABLED !== "false"}
+                        />
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="label-text"
+                        >Nutzungsstatistiken senden (täglich)</span
+                    >
+                </div>
+
                 <div class="actions">
                     <button type="submit" class="btn">Speichern</button>
                 </div>

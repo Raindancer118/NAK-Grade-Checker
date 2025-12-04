@@ -4,6 +4,14 @@ interface Props {
 }
 
 const { title } = Astro.props;
+
+import { checkAndSendPing } from "../lib/usagePing";
+import { checkForUpdate } from "../lib/updateCheck";
+
+// Run ping check (non-blocking)
+checkAndSendPing();
+
+const { updateAvailable, latestVersion } = await checkForUpdate();
 ---
 
 <!doctype html>
@@ -162,6 +170,80 @@ const { title } = Astro.props;
 		</style>
 	</head>
 	<body>
+		{
+			updateAvailable && (
+				<div class="update-banner">
+					<div class="update-content">
+						<span class="update-icon">🚀</span>
+						<span>
+							Update available! Version{" "}
+							<strong>{latestVersion}</strong> is now available.
+						</span>
+						<a
+							href="https://github.com/Raindancer118/NAK-Grade-Checker/"
+							target="_blank"
+							class="update-btn"
+						>
+							Update Now
+						</a>
+					</div>
+				</div>
+			)
+		}
 		<slot />
+		<style>
+			.update-banner {
+				background: rgba(99, 102, 241, 0.1);
+				border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+				backdrop-filter: blur(12px);
+				padding: 0.75rem;
+				position: sticky;
+				top: 0;
+				z-index: 50;
+				animation: slideDown 0.5s ease-out;
+			}
+
+			.update-content {
+				max-width: 1200px;
+				margin: 0 auto;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 1rem;
+				color: var(--text-main);
+				font-size: 0.95rem;
+			}
+
+			.update-icon {
+				font-size: 1.2rem;
+			}
+
+			.update-btn {
+				background: var(--primary);
+				color: white;
+				padding: 0.4rem 1rem;
+				border-radius: 6px;
+				text-decoration: none;
+				font-weight: 500;
+				font-size: 0.9rem;
+				transition: all 0.2s ease;
+			}
+
+			.update-btn:hover {
+				background: var(--primary-hover);
+				transform: translateY(-1px);
+			}
+
+			@keyframes slideDown {
+				from {
+					transform: translateY(-100%);
+					opacity: 0;
+				}
+				to {
+					transform: translateY(0);
+					opacity: 1;
+				}
+			}
+		</style>
 	</body>
 </html>
