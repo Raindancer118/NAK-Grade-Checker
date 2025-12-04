@@ -1,0 +1,200 @@
+---
+import Layout from "../layouts/Layout.astro";
+import fs from "node:fs";
+import path from "node:path";
+import botManager from "../lib/botManager";
+import dotenv from "dotenv";
+
+let message = "";
+let msgType = "";
+
+// Load current env to pre-fill
+const envPath = path.resolve(".env");
+const envConfig = dotenv.parse(fs.readFileSync(envPath));
+
+if (Astro.request.method === "POST") {
+    const contentType = Astro.request.headers.get("content-type");
+    if (
+        contentType &&
+        (contentType.includes("multipart/form-data") ||
+            contentType.includes("application/x-www-form-urlencoded"))
+    ) {
+        try {
+            const data = await Astro.request.formData();
+            const formType = data.get("formType");
+
+            // Read existing env to preserve other values
+            const currentEnv = dotenv.parse(fs.readFileSync(envPath));
+            let newEnv = { ...currentEnv };
+
+            if (formType === "credentials") {
+                const username = data.get("username")?.toString();
+                const password = data.get("password")?.toString();
+                if (username && password) {
+                    newEnv.CIS_USERNAME = username;
+                    newEnv.CIS_PASSWORD = password;
+                    message = "Zugangsdaten gespeichert!";
+                    msgType = "success";
+                }
+            } else if (formType === "general") {
+                const interval = data.get("interval")?.toString();
+                const transcriptUrl = data.get("transcriptUrl")?.toString();
+                if (interval) {
+                    newEnv.CHECK_INTERVAL = interval;
+                }
+                if (transcriptUrl) {
+                    newEnv.TRANSCRIPT_URL = transcriptUrl;
+                }
+                message = "Einstellungen gespeichert!";
+                msgType = "success";
+            }
+
+            // Write back to .env
+            let envContent = "";
+            const keys = Object.keys(newEnv);
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i];
+                const v = newEnv[k];
+                envContent += k + "=" + v + "\n";
+            }
+            fs.writeFileSync(envPath, envContent);
+
+            // Restart bot
+            botManager.restart();
+
+            // Redirect if successful
+            if (msgType === "success") {
+                return Astro.redirect("/");
+            }
+        } catch (error) {
+            console.error(error);
+            message = "Fehler beim Speichern.";
+            msgType = "error";
+        }
+    }
+}
+---
+
+<Layout title="Einstellungen">
+    <div class="glass-panel">
+        <h1>Einstellungen</h1>
+        {message && <div class={`message ${msgType}`}>{message}</div>}
+        <div class="settings-section">
+            <h2>Zugangsdaten</h2>
+            <form method="POST">
+                <input type="hidden" name="formType" value="credentials" />
+                <div class="form-group">
+                    <label for="username">CIS Benutzername (Login-Nummer)</label
+                    >
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="12345"
+                        value={envConfig.CIS_USERNAME}
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label for="password">Passwort</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="••••••••"
+                        required
+                    />
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn">Speichern</button>
+                </div>
+            </form>
+        </div>
+        <div class="divider"></div>
+        <div class="settings-section">
+            <h2>Allgemein</h2>
+            <form method="POST">
+                <input type="hidden" name="formType" value="general" />
+                <div class="form-group">
+                    <label for="interval">Prüf-Intervall (Minuten)</label>
+                    <input
+                        type="number"
+                        id="interval"
+                        name="interval"
+                        placeholder="60"
+                        min="1"
+                        value={envConfig.CHECK_INTERVAL || "60"}
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label for="transcriptUrl">Noten-URL (Optional)</label>
+                    <input
+                        type="text"
+                        id="transcriptUrl"
+                        name="transcriptUrl"
+                        placeholder="https://cis.nordakademie.de/..."
+                        value={envConfig.TRANSCRIPT_URL || ""}
+                    />
+                    <small
+                        style="display:block; margin-top:0.5rem; color:rgba(255,255,255,0.5); font-size: 0.8rem;"
+                    >
+                        Standard: https://cis.nordakademie.de/...
+                    </small>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn">Speichern</button>
+                </div>
+            </form>
+        </div>
+        <div class="actions-main">
+            <a href="/" class="btn btn-secondary">Zurück zur Übersicht</a>
+        </div>
+    </div>
+</Layout>
+
+<style>
+    .settings-section {
+        margin-bottom: 2rem;
+    }
+    h2 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+        color: var(--text-main);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 0.5rem;
+    }
+    .divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 2rem 0;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+    .actions-main {
+        margin-top: 2rem;
+        display: flex;
+        justify-content: center;
+    }
+    .message {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        font-weight: 500;
+    }
+    .message.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .message.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+</style>

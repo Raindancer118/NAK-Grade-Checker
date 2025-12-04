@@ -1,0 +1,386 @@
+---
+import Layout from "../layouts/Layout.astro";
+import db from "../lib/db";
+
+const grades = db.prepare("SELECT * FROM grades ORDER BY exam_date DESC").all();
+---
+
+<Layout title="Notenübersicht">
+    <div class="glass-panel">
+        <div class="header">
+            <h1>Notenübersicht</h1>
+            <a href="/settings" class="btn">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    ><path
+                        d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                    ></path><circle cx="12" cy="12" r="3"></circle></svg
+                >
+                Einstellungen
+            </a>
+        </div>
+
+        {
+            grades.length === 0 ? (
+                <div class="empty-state">
+                    <p>Keine Noten gefunden.</p>
+                    <p class="sub">
+                        Konfiguriere den Bot in den Einstellungen, um zu
+                        starten.
+                    </p>
+                </div>
+            ) : (
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Modul</th>
+                                <th>Note</th>
+                                <th>Datum</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {grades.map((g: any) => (
+                                <tr>
+                                    <td class="module-name">{g.module_name}</td>
+                                    <td>
+                                        <span
+                                            class={`grade-badge ${parseFloat(g.grade.replace(",", ".")) <= 2.0 ? "grade-good" : parseFloat(g.grade.replace(",", ".")) <= 3.0 ? "grade-ok" : "grade-bad"}`}
+                                        >
+                                            {g.grade}
+                                        </span>
+                                    </td>
+                                    <td class="date">{g.exam_date}</td>
+                                    <td>
+                                        <span class="status-dot" />
+                                        {g.status}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )
+        }
+
+        <div class="logs-container">
+            <div class="logs-header">
+                <h2>Live Logs</h2>
+                <div class="controls">
+                    <button id="start-btn" class="btn-small btn-success"
+                        >Start</button
+                    >
+                    <button id="stop-btn" class="btn-small btn-danger"
+                        >Stop</button
+                    >
+                    <div class="status-badge" id="bot-status">
+                        <span class="status-dot"></span>
+                        <span id="status-text">Checking...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="terminal" id="terminal">
+                <div class="log-line">Connecting to log stream...</div>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    const terminal = document.getElementById("terminal");
+    const statusText = document.getElementById("status-text");
+    const statusBadge = document.getElementById("bot-status");
+    const startBtn = document.getElementById("start-btn") as HTMLButtonElement;
+    const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
+
+    function updateLogs() {
+        fetch("/api/logs")
+            .then((res) => res.json())
+            .then((data) => {
+                if (terminal) {
+                    terminal.innerHTML = data.logs
+                        .map(
+                            (line: string) =>
+                                `<div class="log-line">${line}</div>`,
+                        )
+                        .join("");
+                    terminal.scrollTop = terminal.scrollHeight;
+                }
+
+                if (statusText && statusBadge) {
+                    if (data.running) {
+                        statusText.textContent = "Running";
+                        statusBadge.classList.add("running");
+                        statusBadge.classList.remove("stopped");
+                        if (startBtn) startBtn.disabled = true;
+                        if (stopBtn) stopBtn.disabled = false;
+                    } else {
+                        statusText.textContent = "Stopped";
+                        statusBadge.classList.add("stopped");
+                        statusBadge.classList.remove("running");
+                        if (startBtn) startBtn.disabled = false;
+                        if (stopBtn) stopBtn.disabled = true;
+                    }
+                }
+            })
+            .catch((err) => console.error("Failed to fetch logs:", err));
+    }
+
+    async function controlBot(action: "start" | "stop") {
+        try {
+            const res = await fetch("/api/bot/control", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                updateLogs(); // Immediate update
+            } else {
+                alert("Error: " + data.message);
+            }
+        } catch (err) {
+            console.error("Failed to control bot:", err);
+            alert("Failed to send command");
+        }
+    }
+
+    if (startBtn) startBtn.addEventListener("click", () => controlBot("start"));
+    if (stopBtn) stopBtn.addEventListener("click", () => controlBot("stop"));
+
+    // Poll every second
+    setInterval(updateLogs, 1000);
+    updateLogs();
+</script>
+
+<style>
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .logs-container {
+        margin-top: 3rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 2rem;
+    }
+
+    .logs-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .logs-header h2 {
+        font-size: 1.2rem;
+        margin: 0;
+        color: var(--text-main);
+    }
+
+    .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .status-badge.running .status-dot {
+        background: #34d399;
+        box-shadow: 0 0 8px #34d399;
+    }
+    .status-badge.stopped .status-dot {
+        background: #f87171;
+        box-shadow: 0 0 8px #f87171;
+    }
+
+    .controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .btn-small {
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        color: white;
+    }
+
+    .btn-small:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: grayscale(1);
+    }
+
+    .btn-success {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-success:hover:not(:disabled) {
+        background: rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-danger {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.3);
+    }
+
+    .terminal {
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        height: 300px;
+        overflow-y: auto;
+        font-family: "Fira Code", monospace;
+        font-size: 0.85rem;
+        color: #e2e8f0;
+    }
+
+    .log-line {
+        margin-bottom: 4px;
+        word-break: break-all;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 0;
+        color: var(--text-muted);
+    }
+
+    .empty-state p {
+        margin: 0;
+        font-size: 1.2rem;
+    }
+    .empty-state .sub {
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+        opacity: 0.7;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 8px;
+    }
+
+    th {
+        text-align: left;
+        padding: 1rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+    }
+
+    tr {
+        background: rgba(255, 255, 255, 0.03);
+        transition:
+            transform 0.2s,
+            background 0.2s;
+    }
+
+    tbody tr:hover {
+        background: rgba(255, 255, 255, 0.07);
+        transform: scale(1.01);
+    }
+
+    td {
+        padding: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    td:first-child {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+        border-left: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    td:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .module-name {
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .date {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .grade-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        min-width: 40px;
+    }
+
+    .grade-good {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+
+    .grade-ok {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+    }
+
+    .grade-bad {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+    }
+
+    .status-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: var(--primary);
+        margin-right: 6px;
+        box-shadow: 0 0 8px var(--primary);
+    }
+</style>
