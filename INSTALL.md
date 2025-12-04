@@ -55,16 +55,39 @@ This guide will help you set up the GradeChecker on your local machine (Linux/Ra
     - Enable "Discord Notifications".
     - Paste your Discord Webhook URL.
 
-## Discord Webhook Setup
+## Discord Webhook Setup (Channel Messages)
 
-To receive notifications on your phone:
+To receive notifications in a channel:
 1.  Create a text channel in your Discord server.
 2.  Go to **Edit Channel** -> **Integrations** -> **Webhooks**.
 3.  Create a new Webhook and copy the **Webhook URL**.
 4.  Paste this URL in the GradeChecker Settings.
 
+## Discord Bot Setup (Direct Messages)
+
+To receive notifications via private DM:
+1.  Go to the [Discord Developer Portal](https://discord.com/developers/applications).
+2.  Click **New Application** and give it a name (e.g., "GradeChecker").
+3.  Go to **Bot** (sidebar) -> **Add Bot**.
+4.  **Token**: Click **Reset Token** to generate a new token. Copy this **Bot Token**.
+5.  **Privileged Gateway Intents**: Enable **Message Content Intent** (optional but good practice).
+6.  **Invite Bot**:
+    - Go to **OAuth2** -> **URL Generator**.
+    - Select `bot`.
+    - Copy the generated URL and open it to invite the bot to your server (it needs to share a server with you to DM you).
+7.  **User ID**:
+    - In Discord, go to **Settings** -> **Advanced** -> Enable **Developer Mode**.
+    - Right-click your own profile picture and select **Copy User ID**.
+8.  **Configure GradeChecker**:
+    - In Settings, select **Direct Message** mode.
+    - Enter the **Bot Token** and **User ID**.
+
 ## Troubleshooting
 
 -   **"Login failed"**: Double-check your CIS credentials.
--   **No Notifications**: Ensure "Discord Notifications" is enabled in Settings and the Webhook URL is correct.
+-   **No Notifications (Webhook)**: Ensure "Discord Notifications" is enabled and Webhook URL is correct.
+-   **No Notifications (DM)**:
+    - Ensure the Bot is in a server with you.
+    - Ensure your privacy settings allow DMs from server members.
+    - Check if the Bot Token is correct.
 -   **Cannot access from phone**: Ensure your firewall allows traffic on port 4321 and both devices are on the same network.
