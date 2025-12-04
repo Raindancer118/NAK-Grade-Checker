@@ -1,46 +1,59 @@
-# Astro Starter Kit: Basics
+# NAK Grade Checker
 
-```sh
-npm create astro@latest -- --template basics
-```
+A dashboard and bot to check grades for Nordakademie students.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## 🚀 Getting Started
 
-## 🚀 Project Structure
+### Prerequisites
 
-Inside of your Astro project, you'll see the following folders and files:
+- Node.js (v18+)
+- Go (v1.20+)
 
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
-```
+### Setup
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+1.  **Clone the repository**
+    ```sh
+    git clone https://github.com/Raindancer118/NAK-Grade-Checker.git
+    cd NAK-Grade-Checker
+    ```
 
-## 🧞 Commands
+2.  **Install Dependencies**
+    ```sh
+    npm install
+    ```
 
-All commands are run from the root of the project, from a terminal:
+3.  **Configure Environment**
+    Create a `.env` file in the root directory with your credentials:
+    ```env
+    CIS_USERNAME=your_username
+    CIS_PASSWORD=your_password
+    CHECK_INTERVAL=60 # Check every 60 minutes
+    ```
+    > **Note:** The `.env` file is excluded from git to keep your credentials safe.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+4.  **Build the Bot**
+    The backend bot is written in Go. You need to build it before running the app.
+    ```sh
+    go build -o gradechecker ./cmd/bot
+    ```
 
-## 👀 Want to learn more?
+### Running the Application
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+1.  **Start the Development Server**
+    ```sh
+    npm run dev
+    ```
+
+2.  **Access the Dashboard**
+    Open [http://localhost:4321](http://localhost:4321) in your browser.
+
+3.  **Start the Bot**
+    - On the dashboard, click the **Start** button in the "Live Logs" section.
+    - The bot will start checking for grades based on your configured interval.
+    - You can see the logs in real-time on the dashboard.
+
+## 🛠️ Tech Stack
+
+- **Frontend**: [Astro](https://astro.build)
+- **Backend**: Go
+- **Database**: SQLite
