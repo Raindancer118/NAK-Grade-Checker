@@ -14,7 +14,7 @@ import (
 
 const (
 	ChecksumFileName  = "checksum.json"
-	GitHubChecksumURL = "https://raw.githubusercontent.com/Raindancer118/NAK-Grade-Checker/main/checksum.json"
+	GitHubChecksumURL = "https://raw.githubusercontent.com/Raindancer118/NAK-Grade-Checker/refs/heads/main/checksum.json"
 )
 
 type ChecksumData struct {
