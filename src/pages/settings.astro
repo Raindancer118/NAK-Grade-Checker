@@ -179,24 +179,30 @@ if (Astro.request.method === "POST") {
                     <select
                         id="discordMode"
                         name="discordMode"
+                        <select
+                        id="discordMode"
+                        name="discordMode"
                         class="form-select"
                     >
                         <option
                             value="webhook"
-                            selected={envConfig.DISCORD_MODE !== "dm"}
-                            >Webhook (Kanal)</option
+                            selected={envConfig.DISCORD_MODE === "webhook" ||
+                                !envConfig.DISCORD_MODE}>Webhook (Kanal)</option
                         >
                         <option
                             value="dm"
                             selected={envConfig.DISCORD_MODE === "dm"}
-                            >Direct Message (Privat)</option
+                            >Eigener Bot (Erweitert)</option
                         >
                     </select>
                 </div>
 
                 <div
                     id="webhook-section"
-                    class={envConfig.DISCORD_MODE === "dm" ? "hidden" : ""}
+                    class={envConfig.DISCORD_MODE === "webhook" ||
+                    !envConfig.DISCORD_MODE
+                        ? ""
+                        : "hidden"}
                 >
                     <div class="form-group">
                         <label for="discordWebhook">Discord Webhook URL</label>
@@ -212,7 +218,7 @@ if (Astro.request.method === "POST") {
 
                 <div
                     id="dm-section"
-                    class={envConfig.DISCORD_MODE !== "dm" ? "hidden" : ""}
+                    class={envConfig.DISCORD_MODE === "dm" ? "" : "hidden"}
                 >
                     <div class="form-group">
                         <label for="discordBotToken">Bot Token</label>
@@ -236,11 +242,46 @@ if (Astro.request.method === "POST") {
                     </div>
                 </div>
 
-                <div class="actions">
+                <div
+                    class="actions"
+                    style="justify-content: space-between; align-items: center;"
+                >
+                    <button type="button" id="testBtn" class="btn btn-secondary"
+                        >Test Senden</button
+                    >
                     <button type="submit" class="btn">Speichern</button>
                 </div>
             </form>
         </div>
+
+        <script>
+            const testBtn = document.getElementById("testBtn");
+            if (testBtn) {
+                testBtn.addEventListener("click", async () => {
+                    const originalText = testBtn.textContent;
+                    testBtn.textContent = "Sende...";
+                    (testBtn as HTMLButtonElement).disabled = true;
+
+                    try {
+                        const res = await fetch("/api/test-notification", {
+                            method: "POST",
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            alert("Testnachricht gesendet!");
+                        } else {
+                            alert("Fehler: " + data.message);
+                        }
+                    } catch (e) {
+                        alert("Fehler beim Senden der Anfrage");
+                    } finally {
+                        testBtn.textContent = originalText;
+                        (testBtn as HTMLButtonElement).disabled = false;
+                    }
+                });
+            }
+        </script>
         <div class="divider"></div>
 
         <div class="settings-section">
@@ -313,20 +354,32 @@ if (Astro.request.method === "POST") {
         </div>
 
         <script>
-            const modeSelect = document.getElementById("discordMode");
+            const modeSelect = document.getElementById(
+                "discordMode",
+            ) as HTMLSelectElement | null;
             const webhookSection = document.getElementById("webhook-section");
             const dmSection = document.getElementById("dm-section");
 
-            if (modeSelect && webhookSection && dmSection) {
-                modeSelect.addEventListener("change", (e) => {
-                    const val = (e.target as HTMLSelectElement).value;
-                    if (val === "dm") {
-                        webhookSection.classList.add("hidden");
-                        dmSection.classList.remove("hidden");
-                    } else {
+            function updateSections(val: string) {
+                if (webhookSection) webhookSection.classList.add("hidden");
+                if (dmSection) dmSection.classList.add("hidden");
+
+                if (val === "dm") {
+                    if (dmSection) dmSection.classList.remove("hidden");
+                } else {
+                    // Default to webhook
+                    if (webhookSection)
                         webhookSection.classList.remove("hidden");
-                        dmSection.classList.add("hidden");
-                    }
+                }
+            }
+
+            if (modeSelect) {
+                // Initial call to set correct visibility on page load
+                updateSections(modeSelect.value);
+
+                modeSelect.addEventListener("change", (e) => {
+                    const target = e.target as HTMLSelectElement;
+                    updateSections(target.value);
                 });
             }
         </script>
@@ -460,5 +513,30 @@ if (Astro.request.method === "POST") {
 
     .hidden {
         display: none;
+    }
+
+    .info-box {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .btn-link {
+        display: inline-block;
+        margin-top: 0.5rem;
+        background: #5865f2;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .btn-link:hover {
+        background: #4752c4;
     }
 </style>

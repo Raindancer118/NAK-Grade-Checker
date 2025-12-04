@@ -47,6 +47,18 @@ type GitHubRelease struct {
 }
 
 func main() {
+	// Check for test flag
+	if len(os.Args) > 1 && os.Args[1] == "--test" {
+		godotenv.Load()
+		log.Println("Sending test notification...")
+		err := notify("System", "Test Notification - GradeChecker is working!")
+		if err != nil {
+			log.Fatalf("Test failed: %v", err)
+		}
+		log.Println("Test notification sent successfully.")
+		return
+	}
+
 	// Load .env
 	godotenv.Load()
 
@@ -466,8 +478,9 @@ func extractGrades(text string) []Grade {
 	return grades
 }
 
-func notify(module, grade string) {
+func notify(module, grade string) error {
 	msg := fmt.Sprintf("New Grade: %s - %s", module, grade)
+	log.Printf("Preparing notification for: %s\n", msg)
 
 	// Local Notification
 	cmd := exec.Command("notify-send", "GradeChecker", msg)
@@ -475,92 +488,136 @@ func notify(module, grade string) {
 
 	// Discord Notification
 	discordEnabled := os.Getenv("DISCORD_ENABLED")
+	log.Printf("DISCORD_ENABLED: %s\n", discordEnabled)
+
 	if discordEnabled == "true" || discordEnabled == "1" || discordEnabled == "yes" {
 		mode := os.Getenv("DISCORD_MODE")
+		log.Printf("DISCORD_MODE: %s\n", mode)
+
 		if mode == "dm" {
-			token := os.Getenv("DISCORD_BOT_TOKEN")
-			userID := os.Getenv("DISCORD_USER_ID")
+			// Custom Bot Mode
+			token := strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN"))
+			userID := strings.TrimSpace(os.Getenv("DISCORD_USER_ID"))
+
+			log.Printf("DM Mode - Token Present: %v, UserID: %s\n", token != "", userID)
+
 			if token != "" && userID != "" {
-				sendDiscordDM(token, userID, msg)
+				return sendDiscordDM(token, userID, msg)
 			}
+			return fmt.Errorf("DM mode enabled but missing token or user ID")
 		} else {
+			// Webhook Mode
 			webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
+			log.Printf("Webhook Mode - URL Present: %v\n", webhookURL != "")
+
 			if webhookURL != "" {
-				sendDiscordNotification(webhookURL, msg)
+				return sendDiscordNotification(webhookURL, msg)
 			}
+			return fmt.Errorf("Webhook mode enabled but missing URL")
 		}
 	}
+	return nil
 }
 
-func sendDiscordNotification(webhookURL, message string) {
-	payload := fmt.Sprintf(`{"content": "%s"}`, message)
-	resp, err := http.Post(webhookURL, "application/json", strings.NewReader(payload))
+func sendDiscordNotification(webhookURL, msg string) error {
+	log.Println("Sending Discord Webhook...")
+	payload := map[string]string{"content": msg}
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Println("Failed to send Discord notification:", err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
+
+	log.Printf("Webhook Response Status: %d\n", resp.StatusCode)
+	if resp.StatusCode != 204 && resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Failed to send Discord notification, status: %d: %s\n", resp.StatusCode, string(body))
+		return fmt.Errorf("status: %d - %s", resp.StatusCode, string(body))
+	}
+	return nil
 }
 
-func sendDiscordDM(token, userID, message string) {
+func sendDiscordDM(token, userID, msg string) error {
+	log.Println("Starting Discord DM process...")
+
 	// 1. Create DM Channel
-	createDMPayload := fmt.Sprintf(`{"recipient_id": "%s"}`, userID)
-	req, err := http.NewRequest("POST", "https://discord.com/api/v10/users/@me/channels", strings.NewReader(createDMPayload))
+	createDMURL := "https://discord.com/api/v10/users/@me/channels"
+	dmPayload := map[string]string{"recipient_id": userID}
+	jsonDMPayload, err := json.Marshal(dmPayload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal DM payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", createDMURL, bytes.NewBuffer(jsonDMPayload))
 	if err != nil {
 		log.Println("Failed to create DM request:", err)
-		return
+		return err
 	}
 	req.Header.Set("Authorization", "Bot "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
+	log.Println("Requesting DM Channel creation...")
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Failed to create DM channel:", err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("Failed to create DM channel (Status %d): %s\n", resp.StatusCode, string(body))
-		return
+		return fmt.Errorf("create DM status: %d - %s", resp.StatusCode, string(body))
 	}
 
-	// Parse Channel ID
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	var dmChannel struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&dmChannel); err != nil {
 		log.Println("Failed to parse DM channel response:", err)
-		return
+		return err
 	}
-
-	channelID, ok := result["id"].(string)
-	if !ok {
-		log.Println("Failed to get channel ID from response")
-		return
-	}
+	log.Printf("DM Channel Created: %s\n", dmChannel.ID)
 
 	// 2. Send Message
-	msgPayload := fmt.Sprintf(`{"content": "%s"}`, message)
-	req, err = http.NewRequest("POST", fmt.Sprintf("https://discord.com/api/v10/channels/%s/messages", channelID), strings.NewReader(msgPayload))
+	sendMsgURL := fmt.Sprintf("https://discord.com/api/v10/channels/%s/messages", dmChannel.ID)
+	msgPayload := map[string]string{"content": msg}
+	jsonMsgPayload, err := json.Marshal(msgPayload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message payload: %w", err)
+	}
+
+	reqMsg, err := http.NewRequest("POST", sendMsgURL, bytes.NewBuffer(jsonMsgPayload))
 	if err != nil {
 		log.Println("Failed to create message request:", err)
-		return
+		return err
 	}
-	req.Header.Set("Authorization", "Bot "+token)
-	req.Header.Set("Content-Type", "application/json")
+	reqMsg.Header.Set("Authorization", "Bot "+token)
+	reqMsg.Header.Set("Content-Type", "application/json")
 
-	resp, err = client.Do(req)
+	log.Println("Sending DM Message...")
+	respMsg, err := client.Do(reqMsg)
 	if err != nil {
 		log.Println("Failed to send DM:", err)
-		return
+		return err
 	}
-	defer resp.Body.Close()
+	defer respMsg.Body.Close()
 
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("Failed to send DM (Status %d): %s\n", resp.StatusCode, string(body))
+	if respMsg.StatusCode != 200 {
+		body, _ := io.ReadAll(respMsg.Body)
+		log.Printf("Failed to send DM (Status %d): %s\n", respMsg.StatusCode, string(body))
+		return fmt.Errorf("send DM status: %d - %s", respMsg.StatusCode, string(body))
 	}
+
+	log.Println("DM Sent Successfully!")
+	return nil
 }
 
 func checkForUpdates(currentVersion string) {
