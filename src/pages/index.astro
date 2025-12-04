@@ -2,7 +2,9 @@
 import Layout from "../layouts/Layout.astro";
 import db from "../lib/db";
 
-const grades = db.prepare("SELECT * FROM grades ORDER BY exam_date DESC").all();
+const grades = db
+    .prepare("SELECT * FROM grades_v2 ORDER BY updated_at DESC")
+    .all();
 ---
 
 <Layout title="Notenübersicht">
@@ -44,7 +46,7 @@ const grades = db.prepare("SELECT * FROM grades ORDER BY exam_date DESC").all();
                             <tr>
                                 <th>Modul</th>
                                 <th>Note</th>
-                                <th>Datum</th>
+                                <th>Aktualisiert</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -59,7 +61,11 @@ const grades = db.prepare("SELECT * FROM grades ORDER BY exam_date DESC").all();
                                             {g.grade}
                                         </span>
                                     </td>
-                                    <td class="date">{g.exam_date}</td>
+                                    <td class="date">
+                                        {new Date(g.updated_at).toLocaleString(
+                                            "de-DE",
+                                        )}
+                                    </td>
                                     <td>
                                         <span class="status-dot" />
                                         {g.status}

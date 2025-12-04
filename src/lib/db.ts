@@ -6,14 +6,14 @@ const db = new Database(dbPath);
 
 // Initialize database schema
 db.exec(`
-  CREATE TABLE IF NOT EXISTS grades (
+  CREATE TABLE IF NOT EXISTS grades_v2 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     module_name TEXT NOT NULL,
     grade TEXT,
-    exam_date TEXT,
-    credits INTEGER,
+    occurrence_index INTEGER,
     status TEXT,
-    UNIQUE(module_name, exam_date)
+    updated_at TEXT,
+    UNIQUE(module_name, occurrence_index)
   );
 `);
 
