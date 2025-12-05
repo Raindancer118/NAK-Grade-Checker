@@ -69,7 +69,8 @@ function startServer() {
                 ...process.env,
                 HOST: 'localhost',
                 PORT: '4321',
-                BOT_BINARY_PATH: botPath
+                BOT_BINARY_PATH: botPath,
+                ELECTRON_RUN: 'true'
             }
         });
 

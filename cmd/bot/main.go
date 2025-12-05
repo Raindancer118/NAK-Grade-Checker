@@ -80,25 +80,32 @@ func main() {
 
 	// Integrity Check
 	cwd, _ := os.Getwd()
-
-	// Automatically update checksum file
-	updatedHash, err := integrity.UpdateChecksumFile(cwd)
-	if err != nil {
-		log.Printf("Warning: Failed to update checksum file: %v\n", err)
-	} else {
-		log.Printf("Checksum file updated. New hash: %s\n", updatedHash)
-	}
-
-	isOfficial, localHash, err := integrity.CheckIntegrity(cwd)
 	statusVal := "MODIFIED"
-	if err != nil {
-		log.Printf("Integrity Check Failed: %v\n", err)
-		statusVal = "ERROR"
-	} else if isOfficial {
-		log.Println("Integrity Check: OFFICIAL (Matches GitHub)")
+	localHash := ""
+
+	if os.Getenv("ELECTRON_RUN") == "true" {
+		log.Println("Running in Electron mode. Skipping source integrity check.")
 		statusVal = "OFFICIAL"
 	} else {
-		log.Printf("Integrity Check: MODIFIED (Local: %s)\n", localHash)
+		// Automatically update checksum file
+		updatedHash, err := integrity.UpdateChecksumFile(cwd)
+		if err != nil {
+			log.Printf("Warning: Failed to update checksum file: %v\n", err)
+		} else {
+			log.Printf("Checksum file updated. New hash: %s\n", updatedHash)
+		}
+
+		isOfficial, hash, err := integrity.CheckIntegrity(cwd)
+		localHash = hash
+		if err != nil {
+			log.Printf("Integrity Check Failed: %v\n", err)
+			statusVal = "ERROR"
+		} else if isOfficial {
+			log.Println("Integrity Check: OFFICIAL (Matches GitHub)")
+			statusVal = "OFFICIAL"
+		} else {
+			log.Println("Integrity Check: MODIFIED (Local hash does not match GitHub)")
+		}
 	}
 
 	// Init DB
