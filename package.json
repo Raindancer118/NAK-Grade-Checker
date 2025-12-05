@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "electron": "^34.2.0",
+    "electron": "^39.2.5",
     "electron-builder": "^25.1.8"
   },
   "optionalDependencies": {
