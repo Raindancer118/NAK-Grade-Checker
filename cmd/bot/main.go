@@ -18,11 +18,14 @@ import (
 	"strings"
 	"time"
 
+	"unicode"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/joho/godotenv"
 	"github.com/ledongthuc/pdf"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/publicsuffix"
+	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -273,11 +276,17 @@ func checkGrades(db *sql.DB, client *http.Client, username, password, targetURL 
 			if !isFirstRun {
 				fmt.Printf("New Grade found: %s - %s\n", g.Module, g.Grade)
 				log.Printf("New Grade found: %s - %s\n", g.Module, g.Grade)
-				notify(g.Module, g.Grade)
+				log.Printf("New Grade found: %s - %s\n", g.Module, g.Grade)
+				if g.Grade != "#" {
+					notify(g.Module, g.Grade)
+				} else {
+					log.Printf("Skipping notification for placeholder grade '#' for module: %s\n", g.Module)
+				}
 			} else {
 				log.Printf("Silently adding initial grade: %s - %s\n", g.Module, g.Grade)
 			}
 
+			log.Printf("Debug: Hex dump of new module name: %x\n", g.Module)
 			_, err = db.Exec("INSERT INTO grades_v2 (module_name, grade, occurrence_index, status, updated_at) VALUES (?, ?, ?, ?, ?)",
 				g.Module, g.Grade, g.OccurrenceIndex, "new", time.Now().Format(time.RFC3339))
 			if err != nil {
@@ -483,7 +492,7 @@ func extractGrades(text string) []Grade {
 			// Start new module
 			currentModuleID = line
 			if i+1 < len(cleanLines) {
-				currentModuleName = cleanLines[i+1]
+				currentModuleName = normalizeString(cleanLines[i+1])
 				i++ // Skip name line
 			} else {
 				currentModuleName = "Unknown"
@@ -528,6 +537,24 @@ func extractGrades(text string) []Grade {
 	}
 
 	return grades
+}
+
+func normalizeString(s string) string {
+	// 1. Normalize Unicode (NFC)
+	s = norm.NFC.String(s)
+
+	// 2. Remove invisible characters / control characters
+	// Keep only graphic characters and spaces
+	var builder strings.Builder
+	for _, r := range s {
+		if unicode.IsGraphic(r) || unicode.IsSpace(r) {
+			builder.WriteRune(r)
+		}
+	}
+	s = builder.String()
+
+	// 3. Trim whitespace
+	return strings.TrimSpace(s)
 }
 
 func notify(module, grade string) error {
