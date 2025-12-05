@@ -23,6 +23,7 @@ This guide will help you set up the GradeChecker on your local machine (Linux/Ra
     ```
 
 3.  **Build the Backend**
+    The backend is automatically built when you start the dev server. To build manually:
     ```bash
     go build -o gradechecker cmd/bot/main.go
     ```

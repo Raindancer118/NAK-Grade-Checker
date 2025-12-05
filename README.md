@@ -32,7 +32,7 @@ A dashboard and bot to check grades for Nordakademie students.
     > **Note:** The `.env` file is excluded from git to keep your credentials safe.
 
 4.  **Build the Bot**
-    The backend bot is written in Go. You need to build it before running the app.
+    The bot is automatically built when you run the development server. However, you can also build it manually:
     ```sh
     go build -o gradechecker ./cmd/bot
     ```
