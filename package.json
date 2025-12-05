@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "astro dev --host",
     "predev": "npm run build:bot",
-    "build:bot": "go build -o gradechecker cmd/bot/main.go",
+    "build:bot": "npm run build:bot:linux && npm run build:bot:windows && npm run build:bot:mac",
+    "build:bot:linux": "GOOS=linux GOARCH=amd64 go build -o dist/gradechecker-linux-amd64 cmd/bot/main.go",
+    "build:bot:windows": "GOOS=windows GOARCH=amd64 go build -o dist/gradechecker-windows-amd64.exe cmd/bot/main.go",
+    "build:bot:mac": "GOOS=darwin GOARCH=arm64 go build -o dist/gradechecker-darwin-arm64 cmd/bot/main.go",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"

@@ -23,9 +23,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/joho/godotenv"
 	"github.com/ledongthuc/pdf"
-	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/text/unicode/norm"
+	_ "modernc.org/sqlite"
 )
 
 const (
@@ -102,7 +102,7 @@ func main() {
 	}
 
 	// Init DB
-	db, err := sql.Open("sqlite3", dbFile)
+	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -571,8 +571,12 @@ func notify(module, grade string) error {
 	log.Printf("Preparing notification for: %s\n", msg)
 
 	// Local Notification
-	cmd := exec.Command("notify-send", "GradeChecker", msg)
-	cmd.Run()
+	if path, err := exec.LookPath("notify-send"); err == nil {
+		cmd := exec.Command(path, "GradeChecker", msg)
+		cmd.Run()
+	} else {
+		log.Println("Notification skipped: notify-send not found")
+	}
 
 	// Discord Notification
 	discordEnabled := os.Getenv("DISCORD_ENABLED")
