@@ -5,7 +5,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "astro dev --host",
-    "predev": "npm install && npm run build:bot",
+    "predev": "npm install && go build -o gradechecker cmd/bot/main.go",
     "build:bot": "npm run build:bot:linux && npm run build:bot:windows && npm run build:bot:mac",
     "build:bot:linux": "GOOS=linux GOARCH=amd64 go build -o bin/gradechecker-linux-amd64 cmd/bot/main.go",
     "build:bot:windows": "GOOS=windows GOARCH=amd64 go build -o bin/gradechecker-windows-amd64.exe cmd/bot/main.go",
